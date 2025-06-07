@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <title>GeoPixel 2</title>
+  <style>
+    canvas { background: #ddd; display: block; margin: auto; }
+    body { text-align: center; font-family: Arial; }
+  </style>
+</head>
+<body>
+  <h1>GeoPixel 2</h1>
+  <canvas id="gameCanvas" width="500" height="500"></canvas>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const TILE_SIZE = 10;
+
+    let map = [];
+    let players = {};
+
+    function drawMap() {
+      for(let y = 0; y < map.length; y++) {
+        for(let x = 0; x < map[y].length; x++) {
+          ctx.fillStyle = (map[y][x] === 0) ? '#333' : '#00aaff';
+          ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        }
+      }
+    }
+
+    function drawPlayers() {
+      for (const id in players) {
+        const p = players[id];
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x * TILE_SIZE, p.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+      }
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawMap();
+      drawPlayers();
+    }
+
+    socket.on('init', (data) => {
+      map = data.map;
+      players = data.players;
+      render();
+    });
+
+    socket.on('playerJoined', (data) => {
+      players[data.id] = data.player;
+      render();
+    });
+
+    socket.on('playerMoved', (data) => {
+      if (players[data.id]) {
+        players[data.id].x = data.x;
+        players[data.id].y = data.y;
+        render();
+      }
+    });
+
+    socket.on('playerLeft', (id) => {
+      delete players[id];
+      render();
+    });
+
+    window.addEventListener('keydown', (e) => {
+      const keyMap = {
+        ArrowUp: 'up',
+        ArrowDown: 'down',
+        ArrowLeft: 'left',
+        ArrowRight: 'right'
+      };
+      if (keyMap[e.key]) {
+        socket.emit('move', keyMap[e.key]);
+      }
+    });
+  </script>
+</body>
+</html>
